@@ -1,156 +1,131 @@
-import { Service, Inject } from 'typedi';
-import { ICandidate } from './../interfaces/ICandidate';
-import { IAbout } from './../interfaces/IAbout';
+import { Service, Inject } from "typedi";
+import { ICandidate } from "./../interfaces/ICandidate";
+import { IAbout } from "./../interfaces/IAbout";
 
-const axios = require('axios');
-import { Logger } from 'winston';
-import { Container } from 'typedi';
+import axios from "axios";
+import { Logger } from "winston";
+import { Container } from "typedi";
 
 @Service()
 export default class CandidateService {
   constructor(
-    @Inject('candidateModel') private candidateModel: Models.CandidateModel,
-    @Inject('aboutModel') private aboutModel: Models.AboutModel,
-    @Inject('connectModel') private connectModel: Models.ConnectModel,
-    @Inject('jobModel') private jobModel: Models.JobModel,
-    @Inject('gitModel') private gitModel: Models.GitModel,
-    ){
-  }
+    @Inject("candidateModel") private candidateModel: Models.CandidateModel,
+    @Inject("aboutModel") private aboutModel: Models.AboutModel,
+    @Inject("connectModel") private connectModel: Models.ConnectModel,
+    @Inject("jobModel") private jobModel: Models.JobModel,
+    @Inject("gitModel") private gitModel: Models.GitModel
+  ) {}
 
-  public async GetCandidateInfo(canid): Promise<any>
-  {
-    const logger:Logger = Container.get('logger');
-    try
-    {
+  public async GetCandidateInfo(canid): Promise<any> {
+    const logger: Logger = Container.get("logger");
+    try {
       const aboutRecord = await this.aboutModel.findOne({
-        _id: canid
+        _id: canid,
       });
       logger.debug(aboutRecord);
       return aboutRecord;
+    } catch (e) {
+      throw e;
     }
-    catch(e)
-    {
-      throw e;  
-    }
-  }  
+  }
 
-  public async GetGitInfo(canid): Promise<any>
-  {
-    const logger:Logger = Container.get('logger');
-    try
-    {
+  public async GetGitInfo(canid): Promise<any> {
+    const logger: Logger = Container.get("logger");
+    try {
       const gitRecord = await this.gitModel.findOne({
-        _id: canid
+        _id: canid,
       });
       logger.debug(gitRecord);
       return gitRecord;
+    } catch (e) {
+      throw e;
     }
-    catch(e)
-    {
-      throw e;  
-    }
-  }  
+  }
 
-
-  public async SetCandidate(token, req ): Promise<{ candidateRecord: ICandidate }> 
-  {
-    const logger:Logger = Container.get('logger');
-    try
-    {
+  public async SetCandidate(token, req): Promise<{ candidateRecord: ICandidate }> {
+    const logger: Logger = Container.get("logger");
+    try {
       logger.debug("Submitting the About Section For the Candidate");
 
       const aboutRecord = await this.aboutModel.create({
         _id: token.sub,
-        about: req.body.about
+        about: req.body.about,
       });
 
       logger.debug("Submitting the Candidate Details");
-      let skills = req.body.skills.split(",")
-      
+      const skills = req.body.skills.split(",");
+
       const candidateRecord = await this.candidateModel.create({
-        _id: token.sub,  // cognitoUsername will be used as the id parameter for the user table.
+        _id: token.sub, // cognitoUsername will be used as the id parameter for the user table.
         name: req.body.name,
         whatsappNumber: req.body.whatsappNumber,
-        jobTitle:req.body.jobTitle,
+        jobTitle: req.body.jobTitle,
         location: req.body.location,
-        skills:skills,
+        skills: skills,
         githubUrl: req.body.githubUrl,
-        ctc:req.body.ctc,
-        exp:req.body.exp,
-        aboutid: aboutRecord['_id'],
-        email: token.email 
+        ctc: req.body.ctc,
+        exp: req.body.exp,
+        aboutid: aboutRecord["_id"],
+        email: token.email,
       });
 
       logger.debug(candidateRecord);
 
       // Need to update the data in the user model also need to remove console logs once upadted the method properly
-      return { candidateRecord }  
-    }
-    catch (e) {
+      return { candidateRecord };
+    } catch (e) {
       logger.debug(e);
       throw e;
     }
   }
 
-  public async SetGithub(token,req):Promise<any>
-  {
-    const logger:Logger = Container.get('logger');
-    try 
-    {
-      const getRepoCount = await axios.get('https://api.github.com/users/'+req.body.githubUrl) // https://api.github.com/users/vishaljkk/repos
+  public async SetGithub(token, req): Promise<any> {
+    const logger: Logger = Container.get("logger");
+    try {
+      const getRepoCount = await axios.get("https://api.github.com/users/" + req.body.githubUrl); // https://api.github.com/users/vishaljkk/repos
       logger.debug(getRepoCount.data.public_repos);
-      
-      const response = await axios.get('https://api.github.com/users/'+req.body.githubUrl+'/repos')
 
-      
-      let repoNameList = [];
-      let languageList = [];
-      let languageCounter = [];
-      
-      for(let i = 0; i<response.data.length; i++)
-      {
+      const response = await axios.get("https://api.github.com/users/" + req.body.githubUrl + "/repos");
+
+      const repoNameList = [];
+      const languageList = [];
+      const languageCounter = [];
+
+      for (let i = 0; i < response.data.length; i++) {
         repoNameList.push(response.data[i].name);
-        if(response.data[i].language == null)
-        {
+        if (response.data[i].language == null) {
           continue;
         }
-        let index = languageList.indexOf(response.data[i].language)
-        if(index != -1)
-        {
-          languageCounter[index] = languageCounter[index]+1
-        }
-        else
-        {
+        const index = languageList.indexOf(response.data[i].language);
+        if (index != -1) {
+          languageCounter[index] = languageCounter[index] + 1;
+        } else {
           languageList.push(response.data[i].language);
-          languageCounter.push(1)
+          languageCounter.push(1);
         }
       }
 
-      for (let i=0; i<languageCounter.length; i++)
-      {
-        for (let j=i; j<languageCounter.length;j++)
-        {
-          logger.debug(languageCounter[i],languageCounter[j]);
+      for (let i = 0; i < languageCounter.length; i++) {
+        for (let j = i; j < languageCounter.length; j++) {
+          logger.debug(languageCounter[i], languageCounter[j]);
           if (languageCounter[i] < languageCounter[j]) {
-            logger.debug(languageCounter[i],languageCounter[j]);
-            let temp = languageCounter[i];
-            languageCounter[i]= languageCounter[j]
-            languageCounter[j]= temp;
-            let templang = languageList[i];
-            languageList[i]= languageList[j]
-            languageList[j]= templang;
+            logger.debug(languageCounter[i], languageCounter[j]);
+            const temp = languageCounter[i];
+            languageCounter[i] = languageCounter[j];
+            languageCounter[j] = temp;
+            const templang = languageList[i];
+            languageList[i] = languageList[j];
+            languageList[j] = templang;
           }
         }
       }
 
-      let languagePercent = []
+      const languagePercent = [];
 
-      for (let i=0; i<languageCounter.length; i++)
-      {
-        languagePercent[i] = (languageCounter[i]/languageCounter[0])*100
-        console.log(languageCounter[i]);
+      for (let i = 0; i < languageCounter.length; i++) {
+        languagePercent[i] = (languageCounter[i] / languageCounter[0]) * 100;
       }
- 
+
       // here we add the git data to our mongoose model
 
       const gitRecord = await this.gitModel.create({
@@ -160,106 +135,88 @@ export default class CandidateService {
         skills: languageList,
         skillsOrder: languagePercent,
       });
-      logger.debug(gitRecord);                                        // Need to update the data in the user model also need to remove console logs once upadted the method properly
-    }
-    catch (e) {
+      logger.debug(gitRecord); // Need to update the data in the user model also need to remove console logs once upadted the method properly
+    } catch (e) {
       throw e;
-    }    
+    }
   }
 
-  public async GetRecoCanList(token): Promise<any> 
-  {
-    try
-    {
+  public async GetRecoCanList(token): Promise<any> {
+    try {
       const candidateRecords = await this.candidateModel.find(token.sub);
-            
-      return candidateRecords;                                        // Need to update the data in the user model also need to remove console logs once upadted the method properly
-    }
-    catch (e) {
+
+      return candidateRecords; // Need to update the data in the user model also need to remove console logs once upadted the method properly
+    } catch (e) {
       throw e;
     }
   }
-  
-  public async GetCandidate(token): Promise<{ candidateRecord: ICandidate , aboutRecord: IAbout }> 
-  {
-    const logger:Logger = Container.get('logger');
-    try
-    {
+
+  public async GetCandidate(token): Promise<{ candidateRecord: ICandidate; aboutRecord: IAbout }> {
+    const logger: Logger = Container.get("logger");
+    try {
       logger.debug("Fetching the Candidate Details");
 
       const candidateRecord = await this.candidateModel.findById(token.sub);
       const aboutRecord = await this.aboutModel.findById(token.sub);
 
-      logger.debug("the fetched candidate record is ",candidateRecord);
-      logger.debug("the fetched candidate record is ",aboutRecord);
+      logger.debug("the fetched candidate record is ", candidateRecord);
+      logger.debug("the fetched candidate record is ", aboutRecord);
 
-      return { candidateRecord , aboutRecord }                                        // Need to update the data in the user model also need to remove console logs once upadted the method properly
-    }
-    catch (e) 
-    {
+      return { candidateRecord, aboutRecord }; // Need to update the data in the user model also need to remove console logs once upadted the method properly
+    } catch (e) {
       throw e;
     }
   }
 
+  public async GetCandidateBasedOnJob(token): Promise<{ candidateRecord: ICandidate; aboutRecord: IAbout }> {
+    const logger: Logger = Container.get("logger");
 
-  public async GetCandidateBasedOnJob(token): Promise<{ candidateRecord: ICandidate , aboutRecord: IAbout }> {
-    
-    const logger:Logger = Container.get('logger');
-
-    try
-    {
+    try {
       logger.debug("Fetching the Candidate Details");
-  
+
       const candidateRecord = await this.candidateModel.findById(token.sub);
-      
+
       const aboutRecord = await this.aboutModel.findById(token.sub);
 
-      logger.debug("The candidate record fetched is :",candidateRecord);
-            
-      return { candidateRecord , aboutRecord }                                        // Need to update the data in the user model also need to remove console logs once upadted the method properly
-    }
-    catch (e) {
+      logger.debug("The candidate record fetched is :", candidateRecord);
+
+      return { candidateRecord, aboutRecord }; // Need to update the data in the user model also need to remove console logs once upadted the method properly
+    } catch (e) {
       throw e;
     }
   }
 
+  public async ApplyJob(token, jobid): Promise<any> {
+    const logger: Logger = Container.get("logger");
 
-  public async ApplyJob(token,jobid): Promise<any> {
+    try {
+      logger.debug("Applying the Candidate Details with job slug : ", jobid);
 
-    const logger:Logger = Container.get('logger');
-
-    try
-    {
-      logger.debug("Applying the Candidate Details with job slug : ",jobid);
-     
       const jobRecord = await this.jobModel.findOne({
         jobslug: jobid,
       });
 
       logger.debug(jobRecord);
 
-      let chatid = token.sub+"-"+jobid;
+      const chatid = token.sub + "-" + jobid;
 
-      logger.debug(jobRecord['companyId'],token.sub);
+      logger.debug(jobRecord["companyId"], token.sub);
 
-      logger.debug(token.sub," ",jobRecord['companyId']);
+      logger.debug(token.sub, " ", jobRecord["companyId"]);
 
       const chatRecord = await this.connectModel.create({
         _id: chatid, // slug+1 // cognitoUsername will be used as the id parameter for the user table.
         candidateid: token.sub,
-        companyid: jobRecord['companyId'],
+        companyid: jobRecord["companyId"],
         jobslug: jobid,
         status: 1,
       });
 
       logger.debug(chatRecord);
 
-      return chatRecord;                                         // Need to update the data in the user model also need to remove console logs once upadted the method properly
-    }
-    catch (e) {
+      return chatRecord; // Need to update the data in the user model also need to remove console logs once upadted the method properly
+    } catch (e) {
       throw e;
     }
   }
 }
-
-
